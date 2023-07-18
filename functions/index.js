@@ -1,34 +1,40 @@
+// Import necessary modules and initialize Firebase Admin SDK
 const functions = require('firebase-functions');
 const Filter = require('bad-words');
 const admin = require('firebase-admin');
 admin.initializeApp();
-
 const db = admin.firestore();
 
+// Cloud Function to detect potentially harmful messages in the 'messages' collection
 exports.detectEvilUsers = functions.firestore
-       .document('messages/{msgId}')
-       .onCreate(async (doc, ctx) => {
+  .document('messages/{msgId}')
+  .onCreate(async (doc, ctx) => {
 
-        const filter = new Filter();
-        const { text, uid } = doc.data(); 
+    // Initialize the 'bad-words' filter
+    const filter = new Filter();
+    const { text, uid } = doc.data(); // Extract 'text' and 'uid' from the newly created document
 
+    // Check if the message contains profane words
+    if (filter.isProfane(text)) {
+      const cleaned = filter.clean(text); // Replace profane words with asterisks (cleaned version)
+      
+      // Update the message to hide the profane content and notify about the ban
+      await doc.ref.update({ text: `🤐 I got BANNED for life for saying... ${cleaned}` });
 
-        if (filter.isProfane(text)) {
+      // Add the user to the 'banned' collection in Firestore
+      await db.collection('banned').doc(uid).set({});
+    }
 
-            const cleaned = filter.clean(text);
-            await doc.ref.update({text: `🤐 I got BANNED for life for saying... ${cleaned}`});
+    // Check if the user has sent more than 7 messages
+    const userRef = db.collection('users').doc(uid)
+    const userData = (await userRef.get()).data();
 
-            await db.collection('banned').doc(uid).set({});
-        } 
-
-        const userRef = db.collection('users').doc(uid)
-
-        const userData = (await userRef.get()).data();
-
-        if (userData.msgCount >= 7) {
-            await db.collection('banned').doc(uid).set({});
-        } else {
-            await userRef.set({ msgCount: (userData.msgCount || 0) + 1 })
-        }
+    if (userData.msgCount >= 7) {
+      // If the user has sent more than 7 messages, add them to the 'banned' collection
+      await db.collection('banned').doc(uid).set({});
+    } else {
+      // If the user hasn't sent 7 messages yet, update their message count
+      await userRef.set({ msgCount: (userData.msgCount || 0) + 1 });
+    }
 
 });
