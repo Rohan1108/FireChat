@@ -1,3 +1,11 @@
+// In summary, this Cloud Function triggers whenever a new message is created in the 'messages' collection.
+// It uses the bad-words library to check if the message contains profane words.
+// If it does, the function replaces the profane content with asterisks and updates the message with a notification about the ban.
+// The user's UID is added to the 'banned' collection to indicate that they are banned.
+// Additionally, the function checks the user's message count in the 'users' collection.
+// If the user has sent more than 7 messages, they are also added to the 'banned' collection.
+// The function helps moderate the chat application by preventing inappropriate content and banning users who violate the message count limit or use profane language.
+
 // Import necessary modules and initialize Firebase Admin SDK
 const functions = require('firebase-functions');
 const Filter = require('bad-words');
